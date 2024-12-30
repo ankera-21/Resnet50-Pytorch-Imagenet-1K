@@ -26,8 +26,7 @@ import torch.nn.functional as F
 
 
 import logging
-logger = logging.getLogger(__name__)
-logger.setLevel(logging.INFO)
+from datetime import datetime
 
 
 
@@ -166,6 +165,26 @@ if __name__ == "__main__":
 
     config = Config()
     
+    ## SET UP LOGGING
+    # Update logging configuration
+    log_filename = f"training_apps.log"
+    log_filepath = os.path.join("logs", config.name, "app_logs", log_filename)
+    os.makedirs(os.path.dirname(log_filepath), exist_ok=True)
+
+    # Configure file handler with timestamp format
+    file_handler = logging.FileHandler(log_filepath)
+    file_handler.setLevel(logging.INFO)
+    formatter = logging.Formatter('%(asctime)s - %(levelname)s - %(message)s', 
+                                datefmt='%Y-%m-%d %H:%M:%S')
+    file_handler.setFormatter(formatter)
+
+    # Configure logger
+    logger = logging.getLogger(__name__)
+    logger.setLevel(logging.INFO)
+    logger.addHandler(file_handler)
+
+
+
     # Create metric logger
     log_dir = os.path.join("logs", config.name,'csv_logger')
     csv_logger = CSVLogger(log_dir)
@@ -223,11 +242,10 @@ if __name__ == "__main__":
         if torch.backends.mps.is_available()
         else "cpu"
     )
-
-    print(f"Using {device} device")
+    logger.info(f"Using {device} device")
 
     resume_training = args.resume # make this False to start from scratch
-
+    logger.info(f"Resume training: {resume_training}")
     num_classes = len(train_dataset.classes)
     model = ResNet50Wrapper(num_classes=num_classes)
     model.to(device)
@@ -291,9 +309,9 @@ if __name__ == "__main__":
     test(val_loader, model, loss_fn, epoch=0, writer=writer, train_dataloader=train_loader, 
          csv_logger=csv_logger, calc_acc5=True)
     
-    print("Starting training from epoch ", start_epoch)
+    logger.info("Starting training from epoch ", start_epoch)
     for epoch in range(start_epoch, config.epochs):
-        print(f"Current Epoch {epoch}")
+        logger.info(f"Current Epoch {epoch}")
         train_metrics = train(train_loader, model, loss_fn, optimizer, scheduler, epoch=epoch, writer=writer, 
               scaler=scaler, csv_logger=csv_logger)
         
@@ -308,34 +326,38 @@ if __name__ == "__main__":
         #torch.save(checkpoint, os.path.join("checkpoints", config.name, f"model_{epoch}.pth"))
         #torch.save(checkpoint, os.path.join("checkpoints", config.name, f"checkpoint.pth"))
        
-        print(f"Current Epoch {epoch} Training completed")
+        logger.info(f"Current Epoch {epoch} Training completed")
         test_metrics = test(val_loader, model, loss_fn, epoch + 1, writer, train_dataloader=train_loader,
              csv_logger=csv_logger, calc_acc5=True)
-        print(f"Current Epoch {epoch} Testing completed")
+        logger.info(f"Current Epoch {epoch} Testing completed")
 
         # save the model checkpoint and logger to s3 
         checkpoint_name=f"checkpoint-epoch-{epoch}-train_acc{train_metrics['accuracy']}-test_acc{test_metrics['accuracy']}-train_acc5{train_metrics['accuracy_top5']}-test_acc5{test_metrics['accuracy_top5']}.pth"
-        torch.save(checkpoint, os.path.join("checkpoints", config.name, checkpoint_name)) 
+        # Create checkpoint directory if it doesn't exist
+        os.makedirs(os.path.join("checkpoints", config.name), exist_ok=True)
+        
+        # Save checkpoint
+        torch.save(checkpoint, os.path.join("checkpoints", config.name, checkpoint_name))
         s3_uri = upload_file_to_s3(
             os.path.join("checkpoints", config.name, checkpoint_name),
-            bucket_name='resnet-1000-cr',
+            bucket_name='resnet-1000',
             s3_prefix='imagenet1K'
         )
-        print(f"Model saved to s3: {s3_uri}")
+        logger.info(f"Model saved to s3: {s3_uri}")
 
         csv_train_logger_s3_uri = upload_file_to_s3(
             os.path.join("logs", config.name, 'csv_logger', 'training_log.csv'),
-            bucket_name='resnet-1000-cr',
+            bucket_name='resnet-1000',
             s3_prefix='imagenet1K-csv-train-logs'
         )
-        print(f"CSVLogger saved to s3: {csv_train_logger_s3_uri}")
+        logger.info(f"CSVLogger saved to s3: {csv_train_logger_s3_uri}")
 
         csv_test_logger_s3_uri = upload_file_to_s3(
             os.path.join("logs", config.name, 'csv_logger', 'test_log.csv'),
-            bucket_name='resnet-1000-cr',
+            bucket_name='resnet-1000',
             s3_prefix='imagenet1K-csv-test-logs'
         )
-        print(f"CSVLogger saved to s3: {csv_test_logger_s3_uri}")
+        logger.info(f"CSVLogger saved to s3: {csv_test_logger_s3_uri}")
 
 
 

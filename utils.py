@@ -7,18 +7,18 @@ from typing import Optional, Union
 
 class Config:
     def __init__(self):
-        self.batch_size = 512
+        self.batch_size = 16 or 512
         self.name = "resnet50_imagenet_1k_onecycleLr"
         self.workers = 12
         self.max_lr = 0.175
         self.momentum = 0.9
         self.weight_decay = 1e-4
-        self.epochs = 3
+        self.epochs = 2
         self.pct_start = 0.3
         self.div_factor = 25.0
         self.final_div_factor = 1e4
-        self.train_folder_name = '/mnt/data/imagenetdata/train'
-        self.val_folder_name = '/mnt/data/imagenetdata/val'
+        self.train_folder_name =  '/Users/chiragtagadiya/MyProjects/EMLO_V4_projects/DVC-pytorch-lightning-MLOps/data/bird_small/train' or'/mnt/data/imagenetdata/train'
+        self.val_folder_name = '/Users/chiragtagadiya/MyProjects/EMLO_V4_projects/DVC-pytorch-lightning-MLOps/data/bird_small/test' or '/mnt/data/imagenetdata/val'
 
     def __repr__(self):
         return str(self.__dict__)
