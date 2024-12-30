@@ -60,41 +60,82 @@ class CSVLogger:
             values = ','.join(str(v) for v in epoch_metrics.values())
             f.write(f"{values}\n")
 
+def upload_file_to_s3(file_path, bucket_name, s3_prefix):
+    import boto3
+    from boto3.s3.transfer import TransferConfig
+    from tqdm import tqdm
+    import os
 
-def upload_file_to_s3(
-    model_path: Union[str, Path],
-    bucket_name: str,
-    s3_prefix: str = 'imagenet_full/',
-    aws_access_key: Optional[str] = None,
-    aws_secret_key: Optional[str] = None,
-    aws_region: Optional[str] = None
-) -> str:
-    model_path = Path(model_path)
-    if not model_path.exists():
-        raise FileNotFoundError(f"Model file not found at {model_path}")
+    class ProgressPercentage(object):
+        def __init__(self, filename):
+            self._filename = filename
+            self._size = float(os.path.getsize(filename))
+            self._seen_so_far = 0
+            self._pbar = tqdm(total=self._size, unit='B', unit_scale=True, desc=f"Uploading {os.path.basename(filename)}")
+
+        def __call__(self, bytes_amount):
+            self._seen_so_far += bytes_amount
+            self._pbar.update(bytes_amount)
+
+    s3_client = boto3.client('s3')
+    file_name = os.path.basename(file_path)
+    s3_path = f"{s3_prefix}/{file_name}"
     
-    timestamp = int(time.time())
-    timestamped_name = f"{model_path.stem}_{timestamp}{model_path.suffix}"
-    
-    aws_access_key = aws_access_key or os.environ.get('AWS_ACCESS_KEY_ID')
-    aws_secret_key = aws_secret_key or os.environ.get('AWS_SECRET_ACCESS_KEY')
-    aws_region = aws_region or os.environ.get('AWS_DEFAULT_REGION', 'us-east-1')
-    
-    if not all([aws_access_key, aws_secret_key]):
-        raise Exception("AWS credentials not found")
-    
-    s3_client = boto3.client(
-        's3',
-        aws_access_key_id=aws_access_key,
-        aws_secret_access_key=aws_secret_key,
-        region_name=aws_region
+    # Configure multipart upload
+    config = TransferConfig(
+        multipart_threshold=1024 * 25,  # 25MB
+        max_concurrency=10,
+        multipart_chunksize=1024 * 25,  # 25MB
+        use_threads=True
     )
     
-    s3_prefix = s3_prefix.rstrip('/') + '/'
-    s3_key = f"{s3_prefix}{timestamped_name}"
-    
     try:
-        s3_client.upload_file(str(model_path), bucket_name, s3_key)
-        return f"s3://{bucket_name}/{s3_key}"
+        s3_client.upload_file(
+            file_path, 
+            bucket_name, 
+            s3_path,
+            Config=config,
+            Callback=ProgressPercentage(file_path)
+        )
+        return f"s3://{bucket_name}/{s3_path}"
     except Exception as e:
-        raise Exception(f"Failed to upload model to S3: {str(e)}")
+        print(f"Failed to upload {file_path} to S3: {str(e)}")
+        return None
+    
+# def upload_file_to_s3(
+#     model_path: Union[str, Path],
+#     bucket_name: str,
+#     s3_prefix: str = 'imagenet_full/',
+#     aws_access_key: Optional[str] = None,
+#     aws_secret_key: Optional[str] = None,
+#     aws_region: Optional[str] = None
+# ) -> str:
+#     model_path = Path(model_path)
+#     if not model_path.exists():
+#         raise FileNotFoundError(f"Model file not found at {model_path}")
+    
+#     timestamp = int(time.time())
+#     timestamped_name = f"{model_path.stem}_{timestamp}{model_path.suffix}"
+    
+#     aws_access_key = aws_access_key or os.environ.get('AWS_ACCESS_KEY_ID')
+#     aws_secret_key = aws_secret_key or os.environ.get('AWS_SECRET_ACCESS_KEY')
+#     aws_region = aws_region or os.environ.get('AWS_DEFAULT_REGION', 'us-east-1')
+    
+#     if not all([aws_access_key, aws_secret_key]):
+#         raise Exception("AWS credentials not found")
+    
+#     s3_client = boto3.client(
+#         's3',
+#         aws_access_key_id=aws_access_key,
+#         aws_secret_access_key=aws_secret_key,
+#         region_name=aws_region
+#     )
+    
+#     s3_prefix = s3_prefix.rstrip('/') + '/'
+#     s3_key = f"{s3_prefix}{timestamped_name}"
+    
+#     try:
+#         s3_client.upload_file(str(model_path), bucket_name, s3_key)
+#         return f"s3://{bucket_name}/{s3_key}"
+#     except Exception as e:
+#         raise Exception(f"Failed to upload model to S3: {str(e)}")

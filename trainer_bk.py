@@ -32,7 +32,6 @@ from datetime import datetime
 
 
 def train(dataloader, model, loss_fn, optimizer, scheduler, epoch, writer, scaler, csv_logger):
-    logger.info(f"[Train Stage] Epoch {epoch+1} Stage : Training STARTS")
     size = len(dataloader.dataset)
     model.train()
     start0 = time.time()
@@ -102,11 +101,10 @@ def train(dataloader, model, loss_fn, optimizer, scheduler, epoch, writer, scale
     }
     csv_logger.log_metrics(metrics)
 
-    logger.info(f"[Train Stage] Epoch {epoch+1} Stage : Training - Loss: {avg_loss:.4f}, Acc: {accuracy:.3f}%, Top-5 Acc: {accuracy_top5:.3f}%, Time: {epoch_time:.2f}s LR: {optimizer.param_groups[0]['lr']:.7f}")
+    logger.info(f"Epoch {epoch+1} Stage : Training - Loss: {avg_loss:.4f}, Acc: {accuracy:.3f}%, Top-5 Acc: {accuracy_top5:.3f}%, Time: {epoch_time:.2f}s LR: {optimizer.param_groups[0]['lr']:.7f}")
     return metrics
 
 def test(dataloader, model, loss_fn, epoch, writer, train_dataloader, csv_logger, calc_acc5=True):
-    logger.info(f"[Test Stage] Epoch {epoch+1} Stage : Testing STARTS")
     size = len(dataloader.dataset)
     num_batches = len(dataloader)
     model.eval()
@@ -153,7 +151,7 @@ def test(dataloader, model, loss_fn, epoch, writer, train_dataloader, csv_logger
     }
     csv_logger.log_metrics(metrics)
 
-    logger.info(f"[Test Stage] Epoch {epoch+1} - Loss: {test_loss:.4f}, Acc: {accuracy:.2f}%, Top-5 Acc: {accuracy_top5:.2f}%")
+    logger.info(f"Test Epoch {epoch+1} - Loss: {test_loss:.4f}, Acc: {accuracy:.2f}%, Top-5 Acc: {accuracy_top5:.2f}%")
     return metrics
 
 if __name__ == "__main__":
@@ -334,54 +332,32 @@ if __name__ == "__main__":
         logger.info(f"Current Epoch {epoch} Testing completed")
 
         # save the model checkpoint and logger to s3 
-        checkpoint_name = f"checkpoint-epoch-{epoch}-train_acc{train_metrics['accuracy']:.2f}-test_acc{test_metrics['accuracy']:.2f}-train_acc5{train_metrics['accuracy_top5']:.2f}-test_acc5{test_metrics['accuracy_top5']:.2f}.pth"
-        checkpoint_path = os.path.join("checkpoints", config.name, checkpoint_name)
-        
+        checkpoint_name=f"checkpoint-epoch-{epoch}-train_acc{train_metrics['accuracy']}-test_acc{test_metrics['accuracy']}-train_acc5{train_metrics['accuracy_top5']}-test_acc5{test_metrics['accuracy_top5']}.pth"
         # Create checkpoint directory if it doesn't exist
-        os.makedirs(os.path.dirname(checkpoint_path), exist_ok=True)
+        os.makedirs(os.path.join("checkpoints", config.name), exist_ok=True)
         
-        # Save checkpoint locally
-        logger.info(f"Saving checkpoint to {checkpoint_path}")
-        torch.save(checkpoint, checkpoint_path)
+        # Save checkpoint
+        torch.save(checkpoint, os.path.join("checkpoints", config.name, checkpoint_name))
+        s3_uri = upload_file_to_s3(
+            os.path.join("checkpoints", config.name, checkpoint_name),
+            bucket_name='resnet-1000',
+            s3_prefix='imagenet1K'
+        )
+        logger.info(f"Model saved to s3: {s3_uri}")
 
-        # Compress checkpoint before uploading (optional)
-        import gzip
-        compressed_path = checkpoint_path + '.gz'
-        with open(checkpoint_path, 'rb') as f_in:
-            with gzip.open(compressed_path, 'wb') as f_out:
-                f_out.write(f_in.read())
-        
-        # Upload compressed checkpoint with progress tracking
-        logger.info(f"Starting upload of checkpoint ({os.path.getsize(compressed_path)/1024/1024:.2f} MB)")
-        try:
-            s3_uri = upload_file_to_s3(
-                compressed_path,
-                bucket_name='resnet-1000',
-                s3_prefix='imagenet1K'
-            )
-            logger.info(f"Model checkpoint upload completed:")
-        except Exception as e:
-            logger.error(f"Failed to upload checkpoint to S3: {str(e)}")
-            raise
+        csv_train_logger_s3_uri = upload_file_to_s3(
+            os.path.join("logs", config.name, 'csv_logger', 'training_log.csv'),
+            bucket_name='resnet-1000',
+            s3_prefix='imagenet1K-csv-train-logs'
+        )
+        logger.info(f"CSVLogger saved to s3: {csv_train_logger_s3_uri}")
 
-        # Upload logs (these are typically much smaller)
-        for log_name, prefix in [
-            ('training_log.csv', 'imagenet1K-csv-train-logs'),
-            ('test_log.csv', 'imagenet1K-csv-test-logs')
-        ]:
-            try:
-                log_path = os.path.join("logs", config.name, 'csv_logger', log_name)
-                s3_uri = upload_file_to_s3(
-                    log_path,
-                    bucket_name='resnet-1000',
-                    s3_prefix=prefix
-                )
-                logger.info(f"{log_name} upload completed: ")
-            except Exception as e:
-                logger.error(f"Failed to upload {log_name} to S3: {str(e)}")
-                raise
-
-        logger.info("All uploads completed successfully")
+        csv_test_logger_s3_uri = upload_file_to_s3(
+            os.path.join("logs", config.name, 'csv_logger', 'test_log.csv'),
+            bucket_name='resnet-1000',
+            s3_prefix='imagenet1K-csv-test-logs'
+        )
+        logger.info(f"CSVLogger saved to s3: {csv_test_logger_s3_uri}")
 
 
 
