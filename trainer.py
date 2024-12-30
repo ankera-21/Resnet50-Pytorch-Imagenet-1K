@@ -334,7 +334,7 @@ if __name__ == "__main__":
         logger.info(f"Current Epoch {epoch} Testing completed")
 
         # save the model checkpoint and logger to s3 
-        checkpoint_name = f"checkpoint-epoch-{epoch}-train_acc-{train_metrics['accuracy']:.2f}-test_acc-{test_metrics['accuracy']:.2f}-train_acc5-{train_metrics['accuracy_top5']:.2f}-test_acc5-{test_metrics['accuracy_top5']:.2f}.pth"
+        checkpoint_name = f"checkpoint-epoch-{epoch}-train_acc-{train_metrics['accuracy']:.2f}-test_acc-{test_metrics['accuracy']:.2f}-train_acc5-{train_metrics['accuracy_top5']:.2f}-test_acc5-cle{test_metrics['accuracy_top5']:.2f}.pth"
         checkpoint_path = os.path.join("checkpoints", config.name, checkpoint_name)
         
         # Create checkpoint directory if it doesn't exist
