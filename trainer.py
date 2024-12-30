@@ -334,7 +334,7 @@ if __name__ == "__main__":
         logger.info(f"Current Epoch {epoch} Testing completed")
 
         # save the model checkpoint and logger to s3 
-        checkpoint_name = f"checkpoint-epoch-{epoch}-train_acc{train_metrics['accuracy']:.2f}-test_acc{test_metrics['accuracy']:.2f}-train_acc5{train_metrics['accuracy_top5']:.2f}-test_acc5{test_metrics['accuracy_top5']:.2f}.pth"
+        checkpoint_name = f"checkpoint-epoch-{epoch}-train_acc-{train_metrics['accuracy']:.2f}-test_acc-{test_metrics['accuracy']:.2f}-train_acc5-{train_metrics['accuracy_top5']:.2f}-test_acc5-{test_metrics['accuracy_top5']:.2f}.pth"
         checkpoint_path = os.path.join("checkpoints", config.name, checkpoint_name)
         
         # Create checkpoint directory if it doesn't exist
@@ -357,7 +357,7 @@ if __name__ == "__main__":
             s3_uri = upload_file_to_s3(
                 compressed_path,
                 bucket_name='resnet-1000',
-                s3_prefix='imagenet1K'
+                s3_prefix='imagenet1K_epoch_/epoch_'+str(epoch)
             )
             logger.info(f"Model checkpoint upload completed:")
         except Exception as e:
@@ -374,14 +374,28 @@ if __name__ == "__main__":
                 s3_uri = upload_file_to_s3(
                     log_path,
                     bucket_name='resnet-1000',
-                    s3_prefix=prefix
+                    s3_prefix=prefix+'/epoch_'+str(epoch)
                 )
                 logger.info(f"{log_name} upload completed: ")
             except Exception as e:
                 logger.error(f"Failed to upload {log_name} to S3: {str(e)}")
                 raise
 
-        logger.info("All uploads completed successfully")
+        # Upload logs to S3
+        try:
+            s3_uri = upload_file_to_s3(
+                log_filepath,
+                bucket_name='resnet-1000',
+                s3_prefix='log_handler/epoch_'+str(epoch)
+            )
+            logger.info(f"Log file upload completed: {s3_uri}")
+        except Exception as e:
+            logger.error(f"Failed to upload log file to S3: {str(e)}")
+            raise
+
+        logger.info("All uploads completed successfully for epoch ", epoch)
+
+        
 
 
 
