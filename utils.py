@@ -5,6 +5,13 @@ import boto3
 from pathlib import Path
 from typing import Optional, Union
 
+class GradioConfig:
+    IMG_W: int = 224
+    IMG_H: int = 224
+    device: str = 'cpu'
+    model_dir = "traced_models",
+    model_file_name = "resnet50_imagenet_1k_model.pt",
+    labels_path = 'imagenet_classes.txt'
 
 class DeploymentConfig:
     ckpt_path: str = ''

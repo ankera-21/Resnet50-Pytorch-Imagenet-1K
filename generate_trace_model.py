@@ -44,7 +44,7 @@ def main(cfg: DeploymentConfig) -> None:
     output_dir.mkdir(parents=True, exist_ok=True)
     
     # Save the traced model
-    output_path = output_dir / "model.pt"
+    output_path = output_dir / "resnet50_imagenet_1k_model.pt"
     torch.jit.save(traced_model, output_path)
     print(f"Traced model saved to: {output_path}")
 
