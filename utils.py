@@ -5,9 +5,16 @@ import boto3
 from pathlib import Path
 from typing import Optional, Union
 
+
+class DeploymentConfig:
+    ckpt_path: str = ''
+    IMG_W: int = 224
+    IMG_H: int = 224
+    device: str = 'cpu'
+
 class Config:
     def __init__(self):
-        self.batch_size =  512
+        self.batch_size =  448
         self.name = "resnet50_imagenet_1k_onecycleLr"
         self.workers = 12
         self.max_lr = 0.175
