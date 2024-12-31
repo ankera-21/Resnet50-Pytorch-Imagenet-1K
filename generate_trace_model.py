@@ -34,10 +34,10 @@ def main(cfg: DeploymentConfig) -> None:
     
     # Trace the model
     print(f"Tracing model on device: {device}")
-    traced_model = model.to_torchscript(method="trace", example_inputs=example_input)
+    traced_model = torch.jit.trace(model, example_input)
     
     # Move traced model to CPU before saving
-    traced_model =traced_model.to(device) # traced_model.cpu()
+    traced_model = traced_model.to(device)
     
     # Create output directory if it doesn't exist
     output_dir = Path(f"traced_models")
