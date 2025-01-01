@@ -17,7 +17,7 @@ def main(cfg: DeploymentConfig) -> None:
     
     # load checkpoint from checkpoint path
     if os.path.exists(cfg.ckpt_path):
-        checkpoint = torch.load(cfg.ckpt_path)
+        checkpoint = torch.load(cfg.ckpt_path, map_location=torch.device('cpu'))
         model.load_state_dict(checkpoint["model"])
     else:
         raise ValueError(f"Checkpoint file not found at {cfg.ckpt_path}")

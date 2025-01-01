@@ -14,7 +14,7 @@ class GradioConfig:
     labels_path = 'imagenet_classes.txt'
 
 class DeploymentConfig:
-    ckpt_path: str = ''
+    ckpt_path: str = '/Users/chiragtagadiya/MyProjects/EMLO_V4_projects/AdvancePython-EPAi/Resnet50-Pytorch-Imagenet-1K/checkpoints/checkpoint-model-resnet-50-imagenet-1k.pth'
     IMG_W: int = 224
     IMG_H: int = 224
     device: str = 'cpu'
